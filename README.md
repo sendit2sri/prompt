@@ -137,3 +137,71 @@ Then we’ll implement:
 	•	run summary + traceability output
 
 If you want, tell me your squad names (2–3 examples) and I’ll also give a Copilot prompt to create those squad YAMLs automatically.
+
+-----
+
+Cool — if you’ve already run the 4 Copilot prompts (structure + configs + docs + CLI scaffold), the next prompt should implement the first real working feature end-to-end:
+
+✅ JSON → ADO Excel exporter (with your exact row rules: Work Item Type + State + Custom.TestType + Priority only on Title row; ID blank always; step rows only have step fields)
+
+Copy-paste this into Copilot Chat:
+
+Now implement the first working feature: export ADO Test Case Excel from a JSON input.
+
+Context:
+- Project structure already exists under `ado-testcase-factory/`.
+- ADO template columns must be exactly:
+  ID, Work Item Type, Title, Test Step, Step Action, Step Expected, Custom.TestType, Area Path, Assigned To, State, Priority
+
+Rules (must match ADO import behavior):
+1) ID must always be blank.
+2) "Work Item Type" must be "Test Case" ONLY on the Title row of each test case. It must be blank for all step rows.
+3) "State" must be "Design" ONLY on the Title row. Blank on step rows.
+4) "Custom.TestType" must appear ONLY on the Title row:
+   - SIT => "Integration Testing"
+   - BUSINESS => "Acceptance Testing"
+   - TEAM => "System Testing"
+5) "Priority" values must be 1..5 (1 is highest) and must appear ONLY on Title row.
+6) "Title" must appear ONLY on Title row. Blank on step rows.
+7) Steps start on the NEXT row after the Title row.
+   - "Test Step" must be 1..N on step rows
+   - "Step Action" and "Step Expected" filled on step rows
+8) Area Path and Assigned To should appear ONLY on Title row; blank on step rows.
+9) If a test case has no steps, raise a validation error.
+
+Implement files:
+A) src/export/validators.py
+- validate_priority(value): ensure 1..5
+- validate_testcase_schema(testcase): title present, steps list non-empty, each step has action and expected
+- validate_testcases_payload(payload): payload contains "test_cases" list
+
+B) src/export/ado_excel_writer.py
+- function: testcases_json_to_dataframe(payload, area_path, test_type, assigned_to="")
+- function: write_ado_excel(df, out_path)
+Use pandas + openpyxl. Output must have the exact columns in correct order.
+
+C) src/main.py
+- Add new args:
+  --in_json (path to testcases json)
+  --out_xlsx (path to output excel)
+  --squad (name of squad yaml file without .yaml)
+  --role (SIT/BUSINESS/TEAM)
+- Load config:
+  config/roles.yaml -> map role to Custom.TestType and default state ("Design")
+  config/squads/<squad>.yaml -> area_path
+- Read the input JSON and export excel using above rules.
+- Print a success message with out_xlsx path.
+
+Also:
+- Update requirements.txt to include pandas and openpyxl.
+- Keep code clean, typed where easy, and with clear error messages.
+
+Finally, create a sample file `runs/sample/input_testcases.json` with 2 test cases and 3 steps each for quick testing.
+
+After you run that prompt
+
+Test it locally with:
+
+python src/main.py --in_json runs/sample/input_testcases.json --out_xlsx runs/sample/output.xlsx --squad hedgefund --role SIT
+
+If you paste the Copilot output errors (if any), I’ll fix the prompts or adjust the design quickly.
