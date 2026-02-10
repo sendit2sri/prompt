@@ -619,3 +619,95 @@ You should see:
 	•	combined Excel
 	•	RUN_SUMMARY + TRACEABILITY
 
+-------------
+
+Nice — you’re basically at the “team rollout” stage now ✅
+Those “Before Testing” lines mean Copilot added a local config expectation and a basic preflight checklist. Next step is to make this production-ready for your team:
+
+What to fix/upgrade now
+	1.	Do NOT create a new config.yaml inside the project
+You already have Continue’s config.yaml. Your script should read that directly (or a safe copy), not ask users to create another.
+	2.	Add a Preflight + Healthcheck mode so users can validate setup in 10 seconds.
+	3.	Add token safety + env var support (so no one commits PATs).
+	4.	Add role/squad defaults so user doesn’t have to pass arguments every time.
+
+⸻
+
+✅ Next Copilot Prompt (hardening + team UX)
+
+Copy-paste this into Continue/Copilot chat:
+
+Next improvement: make YODA automation production-ready for team rollout.
+
+Current issues:
+- Tool asks to create its own config.yaml under src/generate/yoda_client.py (not desired).
+- We already have Continue config.yaml with apiBase/apiKey/model.
+- Team needs quick validation + safer token handling.
+
+Implement the following changes:
+
+1) Unify config handling
+- Remove requirement to create a new config.yaml inside the project.
+- Update yoda_client.py to accept a --continue_config path (already exists) and read directly from it.
+- Keep config.yaml.example only as documentation, not required for runtime.
+- Update "Before Testing" message / docs accordingly.
+
+2) Preflight command
+Add CLI mode: --preflight
+Usage:
+  python src/main.py --preflight --continue_config <path> --squad <squad> --role <role>
+
+Behavior:
+- Validate continue_config can be parsed and contains apiBase, apiKey, model
+- Validate squad yaml exists and has area_path
+- Validate role exists in roles.yaml and has custom_test_type
+- Perform a lightweight network check:
+  - call a very small chat completion with prompt "ping"
+  - ensure response received (no need to parse JSON)
+- Print a clear PASS/FAIL with actionable errors.
+
+3) Environment variable support for token safety
+- If the Continue config apiKey value is like "${ENV_VAR_NAME}" or "env:ENV_VAR_NAME", resolve it from os.environ.
+- If apiKey is a literal string, allow it but warn in logs: "Token appears hardcoded; prefer env var."
+- Update docs/06-yoda-automation.md with safe token practices.
+
+4) Better run logs
+- In RUN_SUMMARY.md include:
+  - continue_config path used
+  - model name
+  - apiBase host (mask sensitive parts)
+  - how many YODA calls succeeded/failed
+- Create output/logs/<run_name>.log and log all errors there (still print concise summary to console).
+
+5) Improve onboarding docs
+- Update README.md Quick Start to include:
+  - Preflight command example
+  - Auto run command example
+  - Folder requirements: story.txt required, mapping optional
+- Remove mention of "create config.yaml in src/generate".
+
+Constraints:
+- Do not break existing modes: --auto_yoda_run, --normalize_run, batch export, package_review
+- Keep code clean and error messages user-friendly.
+
+
+⸻
+
+After you run this prompt, your team workflow becomes:
+
+1) One-time check
+
+python src/main.py --preflight --continue_config "<path-to-continue-config.yaml>" --squad hedgefund --role SIT
+
+2) Run automation
+
+python src/main.py --auto_yoda_run --run_dir runs/sprint-24 --squad hedgefund --role SIT --continue_config "<path>"
+
+3) BA edits → package
+
+python src/main.py --package_review --run_dir runs/sprint-24
+
+
+⸻
+
+If you share what path you’re using for Continue config (example: .continue/config.yaml or config.yaml in workspace), I can give you the exact command you’ll send to your teammates.
