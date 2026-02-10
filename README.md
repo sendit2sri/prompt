@@ -304,3 +304,87 @@ Test it locally with:
 python src/main.py --in_json runs/sample/input_testcases.json --out_xlsx runs/sample/output.xlsx --squad hedgefund --role SIT
 
 If you paste the Copilot output errors (if any), I’ll fix the prompts or adjust the design quickly.
+
+------------------
+
+Next, to make this team-wide usable, you need two things:
+	1.	“Input Pack Builder”: auto-create the folder skeleton for 5–12 stories (so people don’t manually create folders)
+	2.	“Review Workflow Guardrails”: validate that reviewed files follow your ADO rules + create an upload-ready package
+
+Here’s your next Copilot prompt (copy-paste):
+
+Next feature: Run initializer + Review packaging.
+
+Problem:
+Team members will struggle with creating input_pack structure correctly and mixing draft vs reviewed excels.
+Add tooling to create a run skeleton and to package reviewed excels for upload.
+
+Implement:
+
+A) New CLI subcommand mode in src/main.py: --init_run
+Usage:
+  python src/main.py --init_run --run_dir runs/sprint-24 --stories US-12345,US-12346,US-12347
+
+Behavior:
+1) Create folders if missing:
+   <run_dir>/input_pack/<story_id>/
+   <run_dir>/output/excel/
+   <run_dir>/output/combined/
+   <run_dir>/output/docs/
+   <run_dir>/output/review/
+   <run_dir>/output/upload_ready/
+2) In each story folder, create placeholder files (if not exist):
+   story.txt
+   notes.txt
+   mapping.xlsx (placeholder note only)
+   testcases.json (placeholder JSON skeleton)
+3) Generate <run_dir>/RUN_README.md explaining:
+   - where to paste ADO story content (story.txt)
+   - where to put YODA output (testcases.json)
+   - how to run batch export
+   - where BA should save reviewed excel (output/review)
+
+B) New CLI mode: --package_review
+Usage:
+  python src/main.py --package_review --run_dir runs/sprint-24
+
+Behavior:
+1) Read all files in <run_dir>/output/review/*.xlsx
+2) Validate each reviewed file:
+   - Columns exactly match ADO template columns
+   - Title row must have Work Item Type="Test Case", State="Design"
+   - Step rows must have blank Work Item Type/Title/State/Priority/Custom.TestType
+   - Priority on title row must be 1..5
+   - ID column must be blank for all rows
+   - Test Step values on step rows must be sequential integers starting at 1 for each test case block
+3) Copy valid reviewed files into:
+   <run_dir>/output/upload_ready/
+   and create a manifest:
+   <run_dir>/output/upload_ready/UPLOAD_MANIFEST.md containing:
+   - list of files included
+   - count of stories, testcases, total rows
+   - role/test_type and squad/area_path used
+4) If a reviewed file fails validation:
+   - do NOT copy it
+   - add it to a failures section in the manifest with the reason
+
+Implementation detail:
+- Create src/export/excel_review_validator.py to validate an existing Excel file.
+- Reuse the same column list and row rules already implemented.
+- Use openpyxl to read excel to preserve exact values and detect blanks.
+
+C) Add clear console output:
+- For init_run: print created folders and missing placeholders
+- For package_review: "Packaged X files, Y failed. Upload-ready at ..."
+
+Do NOT modify existing batch export behavior.
+Keep code readable and with actionable error messages.
+
+Why this is the right next step
+	•	Makes it usable by everyone (no “how do I set up folders?” confusion)
+	•	Prevents wrong Excel uploads
+	•	Supports governance (manifest = audit + manager friendly)
+
+After this, the next step would be: Normalization module (ADO paste + mapping excel/csv + notes → normalized_requirement.md), then YODA usage becomes even easier.
+
+If you hit any validation false-positives (common with blank cells vs empty strings), paste one example row and I’ll give a correction prompt.
