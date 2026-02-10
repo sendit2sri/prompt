@@ -709,5 +709,3 @@ python src/main.py --package_review --run_dir runs/sprint-24
 
 
 ⸻
-
-If you share what path you’re using for Continue config (example: .continue/config.yaml or config.yaml in workspace), I can give you the exact command you’ll send to your teammates.
