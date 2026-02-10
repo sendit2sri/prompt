@@ -1,140 +1,139 @@
-Perfect. Then your best “no-admin, no-MCP” system is:
-
-One-line note → Copilot converts to ADO-ready fields (Subtask/Generic Task) with AC auto-drafted → you paste into ADO → later you tweak AC if needed.
-
-Below is a complete setup you can start using today.
+Here are copy-paste prompts you can use in Copilot Chat (VS Code) to generate the full project structure + starter files without you typing code manually.
 
 ⸻
 
-1) Use this single Copilot prompt (handles Subtask + Generic Task)
+Prompt 1 — Create full project structure + placeholder files
 
-Copy/paste into Copilot Chat (IntelliJ) and reuse:
+Create a new Python project folder named `ado-testcase-factory` in my workspace.
 
-You are my Azure DevOps work-item formatter for daily work logging.
+Generate the following directory tree and create empty placeholder files with the exact names:
 
-Output ONLY in this exact structure. No extra commentary.
-
-WORK ITEM 1
-TYPE: <Subtask|Generic Task>
-TITLE: <short action title>
-PRIORITY: <1|2|3|4|5>
-TASK CATEGORY: <BAU|Development|Documentation|In Spring Bug|Testing|Training>  (ONLY if TYPE=Subtask)
-DESCRIPTION:
-- <bullet>
-- <bullet>
-- <bullet>
-ACCEPTANCE CRITERIA:  (ONLY if TYPE=Generic Task)
-- <bullet>
-- <bullet>
-- <bullet>
+ado-testcase-factory/
+├─ README.md
+├─ requirements.txt
+├─ .gitignore
+├─ docs/
+│  ├─ 01-workflow.md
+│  ├─ 02-input-pack-format.md
+│  ├─ 03-review-process.md
+│  ├─ 04-excel-import-guide.md
+│  └─ 05-change-handling.md
+├─ config/
+│  ├─ roles.yaml
+│  └─ squads/
+│     ├─ squad-template.yaml
+├─ templates/
+│  ├─ ado_testcase_template.xlsx   (leave placeholder note; I will copy my real template later)
+│  └─ normalized_requirement_template.md
+├─ src/
+│  ├─ main.py
+│  ├─ normalize/
+│  │  ├─ __init__.py
+│  │  ├─ loaders.py
+│  │  ├─ story_parser.py
+│  │  └─ normalizer.py
+│  ├─ export/
+│  │  ├─ __init__.py
+│  │  ├─ ado_excel_writer.py
+│  │  └─ validators.py
+│  └─ utils/
+│     ├─ __init__.py
+│     ├─ io.py
+│     └─ hashing.py
+└─ runs/
+   └─ .gitkeep
 
 Rules:
-- If user says "meeting", "sync", "follow-up", "demo", "uat support" -> TYPE=Subtask unless they explicitly say deliverable-based task; default Subtask.
-- If there is a deliverable/outcome (deck/doc/test pack/KT note/UAT signoff/closure) -> TYPE=Generic Task.
-- Priority inference:
-  1 = prod/uat blocker or same-day deadline
-  2 = sprint-critical
-  3 = normal planned work
-  4 = minor / nice-to-have
-  5 = FYI / tracking only
-- Category inference:
-  Testing = testcase prep/execution/defects/retest
-  BAU = meetings/support/status/coordination
-  Documentation = decks/notes/KT/email summaries
-  Training = learning/cert prep
-  Development = coding/scripts/automation
-  In Spring Bug = bugfix work during sprint
-- DESCRIPTION: 3–6 bullets, crisp, human, not AI.
-- AC: auto-create based on context. Make it measurable and easy to edit later.
-
-Now convert my raw notes into 1 or more work items.
-Raw notes:
-<<<PASTE HERE>>>
+- Keep code minimal: only scaffolding and placeholders for now.
+- Add basic content into README.md explaining what the tool does at a high level.
+- Add a basic .gitignore for Python projects and /runs outputs.
+- Do not implement full logic yet.
 
 
 ⸻
 
-2) Use a super-fast “one-line” format for your raw notes
+Prompt 2 — Fill config files with the defaults you told me (roles + squad template)
 
-This is the trick that makes Copilot accurate every time.
+Populate these files with initial content:
 
-Subtask note format
+1) config/roles.yaml
+- Define roles: SIT, BUSINESS, TEAM
+- For SIT: custom_test_type = "Integration Testing", default_state = "Design"
+- For BUSINESS: custom_test_type = "Acceptance Testing", default_state = "Design"
+- For TEAM: custom_test_type = "System Testing", default_state = "Design"
+- allowed priorities: 1-5 for all roles
 
-S | <what> | P? | <Category?> | <keywords/outcome>
+2) config/squads/squad-template.yaml
+- Create a template with fields: name and area_path
+- Add comments instructing users to copy this file and name it like hedgefund.yaml, liberty.yaml, etc.
 
-Examples:
-	•	S | Execute SIT cases for HF cutoff cycle | P2 | Testing | run 20 cases; update evidence; log defects
-	•	S | BA sync on calendar logic | P3 | BAU | clarify debit value date; confirm grouping rule; capture actions
-	•	S | UAT support for Liberty demo | P1 | BAU | support business; answer queries; note issues
+Also create one example squad file `config/squads/hedgefund.yaml` with a dummy area_path string placeholder.
 
-Generic Task note format
-
-T | <deliverable> | P? | <keywords> | AC: <optional>
-
-Examples:
-	•	T | Prepare Test Summary deck for business | P2 | key findings; defect status; deployment readiness
-	•	T | Create testcase pack for Redemption order flow | P2 | 5 scenarios; cutoff edge; FT variations
-	•	T | UAT closure report | P1 | outstanding defects; sign-off mail; retest proof
-
-If you don’t know priority/category, skip it. Copilot will infer.
 
 ⸻
 
-3) AC patterns that work well (and stay editable)
+Prompt 3 — Add documentation templates (so team adoption is easy)
 
-Tell Copilot to draft AC like this (it will automatically using the prompt), but here are examples so you know what “good AC” looks like:
+Write concise documentation into these markdown files:
 
-Generic Task: Test case pack
+docs/01-workflow.md:
+- End-to-end flow: input_pack -> normalized -> generated -> excel -> review -> ADO upload
+- Clarify: one user story folder per story (do not merge stories)
 
-Acceptance Criteria
-	•	Test cases created for agreed scenarios (count + scope mentioned)
-	•	Reviewed with BA/dev or peer and comments incorporated
-	•	Uploaded/shared in agreed location and link posted to team
+docs/02-input-pack-format.md:
+- Define the required folder format runs/<run>/input_pack/US-xxxx/
+- Allowed files: story.txt, notes.txt, rules.txt, mapping.xlsx, mapping.csv, reference csv
+- Naming conventions and examples
 
-Generic Task: Test summary deck
+docs/03-review-process.md:
+- Explain: generated excel is draft; BA edits go into review folder; only review excel gets uploaded
 
-Acceptance Criteria
-	•	Deck includes scope, execution status, pass/fail %, and key risks
-	•	Defect list included with severity and current status
-	•	Walkthrough completed with business and actions captured
+docs/04-excel-import-guide.md:
+- Explain ADO columns:
+  ID blank always
+  Work Item Type only on Title row = "Test Case"
+  Title only on Title row
+  State only on Title row = "Design"
+  Test Step/Action/Expected only on step rows
+  Priority only on Title row (1 is highest)
+  Custom.TestType depends on role
 
-Generic Task: UAT closure
+docs/05-change-handling.md:
+- Explain how to handle requirement changes and BA edits
+- Recommend not regenerating unless story changes materially
+- Mention keeping traceability and saving versions
+Keep each doc short and practical.
 
-Acceptance Criteria
-	•	All critical UAT defects triaged and retested (evidence attached)
-	•	Business confirmation/sign-off recorded (mail or ADO comment)
-	•	Release readiness communicated to stakeholders
-
-This matches your need: draft now, edit later.
-
-⸻
-
-4) “Batch mode” (best for busy days)
-
-At end of day, paste all your one-liners at once like:
-
-S | BA sync on HF calendar | P3 | BAU | debit value date rule; capture actions
-S | Execute SIT for Story 9076331 | P2 | Testing | run 15 cases; update sheet; log defects
-T | Prepare test summary deck | P2 | defects + risks + readiness
-
-Copilot outputs WORK ITEM 1…N blocks. Then you create them quickly in ADO.
 
 ⸻
 
-5) Copy/paste mapping into ADO (fast)
+Prompt 4 — Set up Python entrypoint skeleton (no full logic yet)
 
-For each output block:
-	•	Title → TITLE
-	•	Priority dropdown → PRIORITY
-	•	Task Category dropdown (only Subtask) → TASK CATEGORY
-	•	Description → paste DESCRIPTION bullets
-	•	Acceptance Criteria (Generic Task) → paste AC bullets
+Implement minimal skeleton code:
+
+- src/main.py:
+  - Add argparse with options: --run_dir, --squad, --role
+  - Print resolved paths and selected role/squad for now
+  - Do not implement normalization/generation yet
+
+- Add simple placeholder functions in:
+  - src/normalize/normalizer.py
+  - src/export/ado_excel_writer.py
+  - src/export/validators.py
+
+Goal: the CLI should run without errors and print "Scaffold OK".
+
 
 ⸻
 
-6) Small “quality rules” to keep your ADO clean
-	•	Title should start with a verb: Prepare / Execute / Attend / Support / Review / Update
-	•	Description bullets should be “work + outcome”
-	•	AC should always include at least one measurable thing (count, completion, review, shared link)
+After Copilot creates this…
 
-⸻
+You just copy your real ADO Excel template into:
+templates/ado_testcase_template.xlsx
+
+Then we’ll implement:
+	•	batch runner for 5–12 stories
+	•	JSON → ADO Excel export (with your exact row rules)
+	•	run summary + traceability output
+
+If you want, tell me your squad names (2–3 examples) and I’ll also give a Copilot prompt to create those squad YAMLs automatically.
