@@ -388,3 +388,114 @@ Why this is the right next step
 After this, the next step would be: Normalization module (ADO paste + mapping excel/csv + notes → normalized_requirement.md), then YODA usage becomes even easier.
 
 If you hit any validation false-positives (common with blank cells vs empty strings), paste one example row and I’ll give a correction prompt.
+
+-------
+
+Awesome — now your tool is team-ready (init run + batch export + review packaging) ✅
+Next step is the missing “front half”:
+
+✅ Normalize requirements from ADO story + mapping Excel/CSV + notes into ONE normalized requirement per story
+…and generate YODA-ready prompt files so testers don’t craft prompts manually.
+
+This will make adoption explode because it removes the hardest part: “how do I feed requirements?”
+
+Here’s your next Copilot prompt (copy-paste):
+
+Next feature: Requirement Normalizer + YODA prompt generator (per user story).
+
+Context:
+- We already have run_dir structure and init_run creates placeholder files in input_pack/<story_id>/:
+  story.txt, notes.txt, mapping.xlsx (optional), mapping.csv (optional)
+- Goal: Convert all these into a single normalized requirement document and create a YODA prompt file.
+
+Implement in src/normalize/:
+1) src/normalize/loaders.py
+   - load_text(path) -> str
+   - load_excel_mapping(path) -> list[dict]  (best effort: detect columns like source/target/mandatory/rule/remarks)
+   - load_csv_mapping(path) -> list[dict]
+   - functions must handle missing files gracefully (return empty list/string)
+
+2) src/normalize/story_parser.py
+   - parse_story_text(raw: str) -> dict containing:
+     story_id (optional), title, description, acceptance_criteria[]
+   - support common formats:
+     - "Title:" line
+     - "Description:" section
+     - "Acceptance Criteria:" section with bullets/numbered lines
+   - if acceptance criteria not found, keep empty list
+
+3) src/normalize/normalizer.py
+   - normalize_story_folder(story_dir: Path) -> outputs dict with:
+     normalized_md (string),
+     normalized_json (dict),
+     warnings (list[str])
+   - It should:
+     - read story.txt (required; warn if missing/empty)
+     - read notes.txt (optional)
+     - read mapping.xlsx or mapping.csv if exists
+     - build a canonical normalized markdown:
+       ## USER STORY (id/title)
+       ## DESCRIPTION
+       ## ACCEPTANCE CRITERIA
+       ## FIELD MAPPING (table)
+       ## BUSINESS RULES / NOTES
+       ## OPEN QUESTIONS (empty placeholder)
+       ## SOURCE TRACE (which files used)
+     - also produce normalized JSON with same sections
+
+4) YODA prompt generator:
+   - Create src/generate/yoda_prompt_builder.py (new folder src/generate/ if not exist)
+   - build_yoda_prompt(normalized_md: str, role: str) -> str
+   - Role-based instruction:
+       SIT => Integration Testing focus: interface/files/jobs/negative checks
+       BUSINESS => Acceptance Testing focus: user scenarios/outcomes/happy path
+       TEAM => System Testing focus: internal validations + functional flows
+   - Output instructions:
+       - return JSON only
+       - test_cases[] with title, priority(1-5), steps[{action, expected}]
+       - open_questions[] if unclear
+
+5) Wire into CLI (src/main.py):
+   Add mode: --normalize_run
+   Usage:
+     python src/main.py --normalize_run --run_dir runs/sprint-24 --role SIT
+   Behavior:
+     - for each story folder in input_pack:
+       - generate:
+         <run_dir>/output/normalized/<story_id>.normalized.md
+         <run_dir>/output/normalized/<story_id>.normalized.json
+         <run_dir>/output/prompts/<story_id>.yoda.prompt.txt
+       - include warnings in RUN_SUMMARY.md under a "Normalization warnings" section
+
+6) Update project structure if needed:
+   Ensure folders exist in output:
+     output/normalized/
+     output/prompts/
+
+7) Provide a small sample:
+   - Add runs/sample_run/input_pack/US-10001/story.txt with Title/Description/Acceptance Criteria
+   - Add notes.txt and mapping.csv example
+   - Ensure normalize_run works end-to-end.
+
+Constraints:
+- Keep parsing best-effort, not perfect.
+- No external APIs, no OCR.
+- Keep code clean, typed where practical, and include helpful warnings rather than crashing.
+
+After Copilot finishes, you’ll run:
+
+python src/main.py --normalize_run --run_dir runs/sample_run --role SIT
+
+You should get:
+	•	output/normalized/US-10001.normalized.md
+	•	output/prompts/US-10001.yoda.prompt.txt
+
+Then your testers simply:
+	1.	Open prompt file
+	2.	Paste into YODA
+	3.	Save YODA JSON into input_pack/US-10001/testcases.json
+	4.	Run batch export
+
+⸻
+
+If you want the next step after this: we’ll add “YODA response validator + auto-fix hints” (so if YODA returns wrong JSON, the tool tells the user exactly what to correct).
