@@ -200,6 +200,105 @@ Finally, create a sample file `runs/sample/input_testcases.json` with 2 test cas
 
 After you run that prompt
 
+----------------
+
+Nice — exporter is working ✅
+Next prompt should add the batch “run_dir” workflow for 5–12 user stories and generate the team-friendly documentation automatically:
+	•	One Excel per story
+	•	One combined Excel for the sprint/run
+	•	RUN_SUMMARY.md
+	•	TRACEABILITY.csv
+	•	Review folders
+
+Copy-paste this as your next Copilot prompt:
+
+Next feature: Batch processing for 5–12 user stories using a run folder.
+
+Goal:
+Given a run directory structure:
+runs/<run_name>/
+  input_pack/
+    US-12345/
+      testcases.json          # produced by YODA (strict JSON)
+    US-12346/
+      testcases.json
+  output/
+    excel/
+    combined/
+    docs/
+    review/
+
+Implement batch export + auto documentation.
+
+Requirements:
+1) Add a new CLI mode in src/main.py:
+   - --run_dir runs/<run_name>
+   - --squad <squad>
+   - --role <SIT|BUSINESS|TEAM>
+   If --run_dir is passed, ignore --in_json/--out_xlsx and do batch mode.
+
+2) Batch mode logic:
+   - Find all story folders under <run_dir>/input_pack/ (e.g., US-*)
+   - For each story folder:
+     - Load <story_folder>/testcases.json (must exist; if missing, record error but continue)
+     - Validate JSON using existing validators
+     - Export ADO Excel to:
+       <run_dir>/output/excel/<story_id>.ADO.xlsx
+     - Collect traceability:
+       story_id, test_case_title, priority, excel_file, role, squad
+   - Create combined sprint excel:
+     <run_dir>/output/combined/<run_name>.ALL.ADO.xlsx
+     This file is a concatenation of all rows from all story excels, preserving row order.
+
+3) Auto-generate documentation in <run_dir>/output/docs/:
+   A) RUN_SUMMARY.md containing:
+      - run name, date/time
+      - role, resolved Custom.TestType, state=Design, squad, area_path
+      - number of stories found, number processed, number failed, total testcases, total rows exported
+      - list failures with reason (missing file, invalid schema, etc.)
+      - output paths created
+   B) TRACEABILITY.csv with columns:
+      story_id, test_case_title, priority, excel_file, role, test_type, area_path
+
+4) Review folder convention:
+   - Ensure folder exists: <run_dir>/output/review/
+   - Add a short note in RUN_SUMMARY.md: BA should copy reviewed Excel files into output/review before ADO upload.
+
+5) Keep rules unchanged for Excel:
+   - Work Item Type, State, Custom.TestType, Priority, Title only on Title row
+   - Steps start next row
+   - ID blank always
+
+6) Implement helper module src/utils/run_helpers.py (create if needed) for:
+   - resolving run_name from path
+   - finding story folders
+   - safe mkdir
+   - timestamp helper
+
+7) Add a sample run folder:
+runs/sample_run/
+  input_pack/US-10001/testcases.json
+  input_pack/US-10002/testcases.json
+so I can test batch mode quickly.
+
+8) Output should print a concise summary at end:
+   "Processed X/Y stories. Exported total Z rows. Docs generated at ..."
+
+Do not add normalization/YODA automation yet. Only batch export + docs.
+
+How you’ll test after this prompt
+
+python src/main.py --run_dir runs/sample_run --squad hedgefund --role SIT
+
+What you should see
+	•	runs/sample_run/output/excel/US-10001.ADO.xlsx
+	•	runs/sample_run/output/excel/US-10002.ADO.xlsx
+	•	runs/sample_run/output/combined/sample_run.ALL.ADO.xlsx
+	•	runs/sample_run/output/docs/RUN_SUMMARY.md
+	•	runs/sample_run/output/docs/TRACEABILITY.csv
+
+If Copilot generates combined Excel incorrectly (common issue: duplicates or column order), paste the issue and I’ll give the correction prompt.
+
 Test it locally with:
 
 python src/main.py --in_json runs/sample/input_testcases.json --out_xlsx runs/sample/output.xlsx --squad hedgefund --role SIT
