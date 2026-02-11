@@ -804,3 +804,20 @@ python src/main.py --normalize_run --run_dir runs/Run_20260211 --role SIT
 should create:
 runs/Run_20260211/output/prompts/US-xxxx.yoda.prompt.txt
 runs/Run_20260211/output/prompts/YODA_PROMPTS_ALL.txt
+
+
+-------------
+
+Patch src/generate/yoda_client.py to handle apiBase that already includes /v1.
+
+Requirements:
+1) Do NOT ask users to remove /v1 from config.yaml.
+2) Build the final URL like this:
+   - If apiBase ends with "/v1" (or "/v1/"), then endpoint = apiBase + "/chat/completions"
+   - Else endpoint = apiBase + "/v1/chat/completions"
+3) Normalize slashes to avoid double slashes.
+4) Add debug logging (no secrets):
+   - print apiBase
+   - print final endpoint URL
+
+Keep everything else unchanged.
