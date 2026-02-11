@@ -743,3 +743,64 @@ After patch, add a small CLI test command in main.py:
   --test_yoda
 that sends a small prompt "return JSON {\"ok\":true} only"
 and prints whether it succeeded.
+
+------------
+
+Add YODA prompt generation on top of existing Normalizer output.
+
+Current situation:
+- run_dir output already has: combined, docs, excel, logs, normalized, review
+- Normalizer creates: output/normalized/<STORY>.normalized.md
+- There is currently no output/prompts folder.
+
+Goal:
+- Create output/prompts folder
+- For each story normalized file, create a role-aware prompt file:
+  output/prompts/<STORY>.yoda.prompt.txt
+- Also create a combined file for easy copy/paste:
+  output/prompts/YODA_PROMPTS_ALL.txt
+
+Implementation requirements:
+
+1) Create new module: src/generate/yoda_prompt_builder.py
+- function: build_yoda_prompt(normalized_md: str, role: str) -> str
+- role mapping:
+    SIT -> Custom.TestType must be "Integration Testing"
+    BUSINESS -> "Acceptance Testing"
+    TEAM -> "System Testing"
+- common rules in prompt:
+    - Return JSON only (no markdown, no explanation)
+    - Each test case: title, priority (1-5), steps[{action, expected}]
+    - Add open_questions[] for unclear items
+    - Do not invent behaviour; if requirement missing, raise open_questions
+- Prompt must embed the normalized_md content as INPUT.
+
+2) Update src/main.py:
+Wherever --normalize_run is implemented (or normalization flow runs),
+after generating output/normalized/<STORY>.normalized.md:
+- ensure folder exists: <run_dir>/output/prompts/
+- read the normalized_md
+- write prompt to:
+  <run_dir>/output/prompts/<STORY>.yoda.prompt.txt
+
+Also append this prompt into:
+  <run_dir>/output/prompts/YODA_PROMPTS_ALL.txt
+with clear separators like:
+  =========================
+  STORY: US-12345
+  =========================
+
+3) Add CLI flags:
+- In normalize mode, require --role (SIT/BUSINESS/TEAM) because prompt depends on role.
+- Add optional flag: --no_prompt (if user wants only normalized output)
+
+4) Logging:
+- Print summary: "Generated N normalized docs and N YODA prompt files"
+
+5) Do not change existing folder names or outputs besides adding output/prompts.
+
+After implementation, running:
+python src/main.py --normalize_run --run_dir runs/Run_20260211 --role SIT
+should create:
+runs/Run_20260211/output/prompts/US-xxxx.yoda.prompt.txt
+runs/Run_20260211/output/prompts/YODA_PROMPTS_ALL.txt
