@@ -709,3 +709,37 @@ python src/main.py --package_review --run_dir runs/sprint-24
 
 
 ⸻
+
+Patch src/generate/yoda_client.py to fix 401 Unauthorized.
+
+Requirements:
+1) Normalize apiBase:
+   - strip trailing slashes
+   - if it ends with "/v1" remove it (store base_no_v1)
+
+2) Try both endpoint paths in order:
+   a) {base_no_v1}/v1/chat/completions
+   b) {base_no_v1}/chat/completions
+
+3) Try auth header styles (configurable):
+   - Prefer "api-key: <apiKey>" first
+   - If 401, retry with "Authorization: Bearer <apiKey>"
+
+4) Add headers to mimic Continue:
+   - User-Agent: continue-vscode
+   - X-Client: continue
+
+5) Improve logging (no secrets):
+   - Print apiBase used, endpoint attempted, model name
+   - Print apiKey length only (not the key)
+   - On error, print status code + response text (trim to 500 chars)
+
+6) Keep request payload OpenAI chat format:
+   { model, messages, temperature }
+
+7) Add timeout=30 and raise clear exceptions.
+
+After patch, add a small CLI test command in main.py:
+  --test_yoda
+that sends a small prompt "return JSON {\"ok\":true} only"
+and prints whether it succeeded.
